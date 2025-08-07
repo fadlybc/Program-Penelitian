@@ -1,0 +1,33 @@
+#include <SoftwareSerial.h>
+
+SoftwareSerial lora(3, 2); // RX, TX
+
+int diterima = 0;
+int terakhir = 0;
+
+void setup() {
+  Serial.begin(9600);
+  lora.begin(9600);
+  delay(1000);
+  Serial.println("Receiver siap");
+}
+
+void loop() {
+  if (lora.available()) {
+    String data = lora.readStringUntil('\n');
+    if (data.startsWith("PING#")) {
+      int nomor = data.substring(5).toInt();
+      Serial.println("Terima paket #" + String(nomor));
+      diterima++;
+      terakhir = nomor;
+    }
+  }
+
+  if (terakhir == 200) {
+    int hilang = 200 - diterima;
+    float persen = (hilang / 200.0) * 100;
+    Serial.println("Total diterima: " + String(diterima));
+    Serial.println("Packet loss: " + String(hilang) + " (" + String(persen, 2) + "%)");
+    while (1);
+  }
+}
