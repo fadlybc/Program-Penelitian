@@ -1,0 +1,67 @@
+#include <SoftwareSerial.h>
+#include <DHT.h>
+#include <math.h>
+
+// === Konfigurasi Pin ===
+#define DHTPIN 4         // Pin data DHT22
+#define DHTTYPE DHT22
+#define LORA_RX 2        // LoRa TX ke pin 2 Arduino
+#define LORA_TX 3        // LoRa RX ke pin 3 Arduino
+#define MQ136_PIN A0     // Pin sensor gas MQ-136
+
+// === Konstanta Sensor MQ-136 ===
+const float RL = 10.0;       // RL (kΩ)
+const float R0 = 20.0;       // Rs di udara bersih (kalibrasi manual)
+const float Vcc = 5.0;       // Tegangan referensi
+
+// === Objek Sensor ===
+SoftwareSerial lora(LORA_RX, LORA_TX);
+DHT dht(DHTPIN, DHTTYPE);
+
+// === Variabel waktu pembacaan MQ ===
+unsigned long lastGasRead = 0;
+const unsigned long gasInterval = 3000; // 3 detik
+
+float ppmSO2 = 0.0;
+
+void setup() {
+  Serial.begin(9600);
+  lora.begin(9600);
+  dht.begin();
+  delay(2000); // Biarkan sensor stabil
+}
+
+void loop() {
+  // === Baca suhu dan kelembaban ===
+  float suhu = dht.readTemperature();
+  float kelembaban = dht.readHumidity();
+
+  // Validasi sensor
+  if (isnan(suhu) || isnan(kelembaban)) {
+    Serial.println("Gagal membaca dari sensor DHT22!");
+    return;
+  }
+
+  // === Baca sensor gas setiap 3 detik ===
+  unsigned long now = millis();
+  if (now - lastGasRead >= gasInterval) {
+    lastGasRead = now;
+
+    int analogValue = analogRead(MQ136_PIN);
+    float voltage = (analogValue / 1023.0) * Vcc;
+    float Rs = ((Vcc - voltage) / voltage) * RL;
+    float ratio = Rs / R0;
+
+    ppmSO2 = pow(10, ((log10(ratio) - 0.4771) / -0.35)); // log-log model dari datasheet
+  }
+
+  // === Format dan kirim data ===
+  String data = "Suhu: " + String(suhu, 2) + " °C | "
+              + "Kelembaban: " + String(kelembaban, 2) + " % | "
+              + "PPM SO2: " + String(ppmSO2, 2) + " ppm";
+
+  Serial.println(data);
+  lora.println(data);
+
+  delay(2000); // jeda antar pengiriman
+}
