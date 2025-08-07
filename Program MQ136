@@ -1,0 +1,48 @@
+
+// Pin dan Konstanta Sensor
+const int mq136Pin = A0;          // Pin AOUT dari modul MQ-136
+const float RL = 10.0;            // RL sudah terpasang di modul, nilai tipikal 10 kΩ
+const float R0 = 20.0;            // Nilai Rs di udara bersih (kalibrasi manual)
+const float Vcc = 5.0;            // Tegangan suplai sensor
+
+// Waktu Pembacaan
+unsigned long lastReadTime = 0;
+const unsigned long interval = 3000; // 3 detik (1 menit)
+
+void setup() {
+  Serial.begin(9600);
+  delay(2000);  // Tunggu sensor stabil saat startup
+  Serial.println("=== Monitoring Gas SO2 (MQ-136) ===");
+  Serial.println("Pembacaan data setiap 1 menit...");
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - lastReadTime >= interval) {
+    lastReadTime = currentMillis;
+
+    // Baca nilai analog
+    int analogValue = analogRead(mq136Pin);
+    float voltage = (analogValue / 1023.0) * Vcc;
+
+    // Hitung Rs berdasarkan tegangan
+    float Rs = ((Vcc - voltage) / voltage) * RL;   // Rs dalam KΩ
+    float ratio = Rs / R0;
+
+    // Estimasi SO2 ppm berdasarkan kurva datasheet (log-log)
+    float ppm = pow(10, ((log10(ratio) - 0.4771) / -0.35));  // Model empiris
+
+    // Tampilkan ke Serial Monitor
+    Serial.println("=====================================");
+    Serial.print("Waktu        : "); Serial.print(currentMillis / 1000); Serial.println(" detik");
+    Serial.print("Tegangan     : "); Serial.print(voltage, 3); Serial.println(" V");
+    Serial.print("Resistansi Rs: "); Serial.print(Rs, 2); Serial.println(" KΩ");
+    Serial.print("Rs/R0        : "); Serial.print(ratio, 2);
+    Serial.println();
+    Serial.print("Estimasi SO2 : "); Serial.print(ppm, 2); Serial.println(" ppm");
+    Serial.println("=====================================");
+  }
+
+  delay(100); // Delay kecil agar loop tidak terlalu cepat
+}
