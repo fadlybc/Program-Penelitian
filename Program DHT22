@@ -1,0 +1,38 @@
+#include "DHT.h"
+
+// Pin yang terhubung ke pin DATA dari DHT22
+#define DHTPIN 4       // Ganti sesuai pin yang kamu pakai (contoh GPIO 4)
+
+// Tipe sensor: DHT22
+#define DHTTYPE DHT22
+
+// Inisialisasi objek DHT
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println("Mulai membaca sensor DHT22...");
+  
+  dht.begin();  // Inisialisasi sensor
+}
+
+void loop() {
+  // Tunggu antar pembacaan (minimal 2 detik untuk DHT22)
+  delay(2000);
+
+  float suhu = dht.readTemperature();      // Celsius
+  float kelembapan = dht.readHumidity();
+
+  // Cek apakah pembacaan gagal
+  if (isnan(suhu) || isnan(kelembapan)) {
+    Serial.println("Gagal membaca dari sensor DHT22!");
+    return;
+  }
+
+  // Tampilkan hasil
+  Serial.print("Suhu: ");
+  Serial.print(suhu);
+  Serial.print(" °C,  Kelembapan: ");
+  Serial.print(kelembapan);
+  Serial.println(" %");
+}
